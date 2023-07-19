@@ -20,6 +20,7 @@
 # include  "version_base.h"
 # include  "vpi_priv.h"
 # include  "schedule.h"
+# include  "logic.h"
 #ifdef CHECK_WITH_VALGRIND
 # include  "vvp_cleanup.h"
 #endif
@@ -1671,8 +1672,8 @@ vpiHandle vpi_handle_multi(PLI_INT32 type,
 
       fprintf(stderr, "my_node1->fil->filter_size() : %d\n", net1->fil->filter_size());
 
-      fprintf(stderr, "my_node1->out_.ptr() : %p\n", net1->out_.ptr());   // vvp_net_t
-      fprintf(stderr, "my_node1->out_.port() : %d\n", net1->out_.port()); // input 3-0
+      //fprintf(stderr, "my_node1->out_.ptr() : %p\n", net1->out_.ptr());   // vvp_net_t
+      //fprintf(stderr, "my_node1->out_.port() : %d\n", net1->out_.port()); // input 3-0
 
 
       // TODO for now just replace vvp_fun_bufz with vvp_fun_intermodpath

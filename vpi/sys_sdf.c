@@ -410,10 +410,10 @@ static PLI_INT32 sys_sdf_annotate_calltf(ICARUS_VPI_CONST PLI_BYTE8*name)
 	    return 0;
       }
 
-      if (sdf_flag_inform) vpi_printf("SDF INFO: Loading %s from %s:%d",
-			      sdf_fname,
-			      vpi_get_str(vpiFile, sdf_callh),
-			      (int)vpi_get(vpiLineNo, sdf_callh));
+      if (sdf_flag_inform) vpi_printf("SDF INFO: Loading %s from %s:%d\n",
+			      fname,
+			      vpi_get_str(vpiFile, callh),
+			      (int)vpi_get(vpiLineNo, callh));
 
       sdf_fd = fopen(fname, "r");
       if (sdf_fd == 0) {
