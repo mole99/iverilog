@@ -1156,7 +1156,7 @@ class vvp_net_t {
     public: // Method to support $countdrivers
       void count_drivers(unsigned idx, unsigned counts[4]);
 
-    private:
+    public:
       vvp_net_ptr_t out_;
 
     public: // Need a better new for these objects.
