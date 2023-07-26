@@ -264,4 +264,35 @@ class vvp_fun_intermodpath  : public vvp_net_fun_t, private vvp_gen_event_s {
       vvp_fun_intermodpath& operator= (const vvp_fun_intermodpath&);
 };
 
+/*
+* The port functor is used for ports of modules, needed for the the SDF INTERCONNECT feature
+* TODO common base class
+*/
+class vvp_fun_port  : public vvp_net_fun_t, private vvp_gen_event_s {
+
+    public:
+      vvp_fun_port(unsigned width);
+      ~vvp_fun_port();
+
+      void recv_vec4(vvp_net_ptr_t port, const vvp_vector4_t&bit,
+                     vvp_context_t);
+
+      void get_delay12(vvp_time64_t out[12]) const;
+      void put_delay12(const vvp_time64_t in[12]);
+
+    private:
+      virtual void run_run();
+
+    private:
+      vvp_net_t*net_;
+
+      vvp_vector4_t cur_vec4_;
+
+      vvp_time64_t delay_[12];
+
+    private: // not implemented
+      vvp_fun_port(const vvp_fun_port&);
+      vvp_fun_port& operator= (const vvp_fun_port&);
+};
+
 #endif /* IVL_delay_H */

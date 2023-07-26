@@ -42,7 +42,6 @@
 # include  "event.h"
 # include  "arith.h"
 # include  "part.h"
-# include  "substitute.h"
 
 
 using namespace std;
@@ -1585,7 +1584,13 @@ void print_net_type(vvp_net_t* net1)
       else if (dynamic_cast<vvp_named_event*>(net1->fun)) std::cout << "vvp_named_event*!" << std::endl;
       else if (dynamic_cast<vvp_fun_bufif*>(net1->fun)) std::cout << "vvp_fun_bufif*!" << std::endl;
       else if (dynamic_cast<vvp_dff*>(net1->fun)) std::cout << "vvp_dff*!" << std::endl;
+      else if (dynamic_cast<vvp_fun_and*>(net1->fun)) std::cout << "vvp_fun_and*!" << std::endl;
+      else if (dynamic_cast<vvp_fun_equiv*>(net1->fun)) std::cout << "vvp_fun_equiv*!" << std::endl;
+      else if (dynamic_cast<vvp_fun_impl*>(net1->fun)) std::cout << "vvp_fun_impl*!" << std::endl;
+      else if (dynamic_cast<vvp_fun_or*>(net1->fun)) std::cout << "vvp_fun_or*!" << std::endl;
+      else if (dynamic_cast<vvp_fun_xor*>(net1->fun)) std::cout << "vvp_fun_xor*!" << std::endl;
       else if (dynamic_cast<vvp_fun_boolean_*>(net1->fun)) std::cout << "vvp_fun_boolean_*!" << std::endl;
+      else if (dynamic_cast<vvp_fun_buft*>(net1->fun)) std::cout << "vvp_fun_buft*!" << std::endl;
       else if (dynamic_cast<vvp_fun_buf*>(net1->fun)) std::cout << "vvp_fun_buf*!" << std::endl;
       else if (dynamic_cast<vvp_fun_bufz*>(net1->fun)) std::cout << "vvp_fun_bufz*!" << std::endl;
       else if (dynamic_cast<vvp_fun_muxz*>(net1->fun)) std::cout << "vvp_fun_muxz*!" << std::endl;
@@ -1688,67 +1693,20 @@ vpiHandle vpi_handle_multi(PLI_INT32 type,
 	      return nullptr;
       }*/
 
-      std::string port_name1(vpi_get_str(vpiName, ref1));
-      std::string port_name2(vpi_get_str(vpiName, ref2));
+      vvp_net_t* net1 = port1->get_port();
+      vvp_net_t* net2 = port2->get_port();
 
-      fprintf(stderr, "port_name1: %s\n", port_name1.c_str());
-      fprintf(stderr, "port_name2: %s\n", port_name2.c_str());
-
-      vpiHandle mod1 = vpi_handle(vpiModule, ref1);
-      vpiHandle mod2 = vpi_handle(vpiModule, ref2);
-
-      if (!mod1) fprintf(stderr, "Cannot access module of port1!\n");
-      if (!mod2) fprintf(stderr, "Cannot access module of port2!\n");
-
-      // Find net for port1
-      vpiHandle net_i = vpi_iterate(vpiNet, mod1);
-      vpiHandle net;
-      vpiHandle net_handle1 = nullptr;
-
-      while ((net=vpi_scan(net_i)) != nullptr)
-      {
-	      char *net_name = vpi_get_str(vpiName, net);
-
-	      fprintf(stderr, "Comparing %s and %s\n", net_name, port_name1.c_str());
-	      if (port_name1 == net_name)
-	      {
-		      if (net_handle1 != nullptr)
-		      {
-			      fprintf(stderr, "Found multiple matching nets for %s !\n", port_name1.c_str());
-		      }
-		      fprintf(stderr, "Found handle for net %s!\n", net_name);
-		      net_handle1 = net;
-	      }
+      if (!dynamic_cast<vvp_fun_buft*>(net1->fun)) {
+	      fprintf(stderr, "Error: functor of net1 must be"
+		      "vvp_fun_buft\n");
+	      return nullptr;
       }
 
-      // Find net for port2
-      net_i = vpi_iterate(vpiNet, mod2);
-      vpiHandle net_handle2 = nullptr;
-
-      while ((net=vpi_scan(net_i)) != nullptr)
-      {
-	      char *net_name = vpi_get_str(vpiName, net);
-
-	      fprintf(stderr, "Comparing %s and %s\n", net_name, port_name2.c_str());
-	      if (port_name2 == net_name)
-	      {
-		      if (net_handle2 != nullptr)
-		      {
-			      fprintf(stderr, "Found multiple matching nets for %s !\n", port_name2.c_str());
-		      }
-		      fprintf(stderr, "Found handle for net %s!\n", net_name);
-		      net_handle2 = net;
-	      }
+      if (!dynamic_cast<vvp_fun_buft*>(net2->fun)) {
+	      fprintf(stderr, "Error: functor of net2 must be"
+		      "vvp_fun_buft\n");
+	      return nullptr;
       }
-
-      // Try to access net/node behind it
-      struct __vpiSignal*node1 = dynamic_cast<__vpiSignal*>(net_handle1);
-      assert(node1);
-      struct __vpiSignal*node2 = dynamic_cast<__vpiSignal*>(net_handle2);
-      assert(node2);
-
-      vvp_net_t* net1 = node1->node;
-      vvp_net_t* net2 = node2->node;
 
       print_net_type(net1);
       print_net_type(net2);
@@ -1772,47 +1730,101 @@ vpiHandle vpi_handle_multi(PLI_INT32 type,
       // TODO don't just compare the nets, may be a problem for high fan-out nets
       if (net1 == net2)
       {
-	      fprintf(stderr, "Same net!\n");
+	      fprintf(stderr, "Error same net!\n");
+      }
+      else
+      {
+	      fprintf(stderr, "Different net!\n");
 
-	      vvp_net_ptr_t* next_ptr = &net1->out_;
+            vvp_fun_port* fun_port1 = dynamic_cast<vvp_fun_port*>(net1->fun);
+            vvp_fun_port* fun_port2 = dynamic_cast<vvp_fun_port*>(net2->fun);
 
-	      fprintf(stderr, "Port connections:\n");
+            if (!fun_port1 || !fun_port2) fprintf(stderr, "Not vvp_fun_port!\n");
 
-	      print_port_connections(next_ptr);
+	      vvp_net_ptr_t* net1_ptr = &net1->out_;
+	      vvp_net_ptr_t* net2_ptr = &net2->out_;
 
-	      fprintf(stderr, "End port connections:\n");
+	      fprintf(stderr, "Connected to port1:\n");
+	      print_port_connections(net1_ptr);
 
-	      std::cout << *next_ptr << std::endl;
+	      fprintf(stderr, "Connected to port2:\n");
+	      print_port_connections(net2_ptr);
 
-	      vvp_net_t* next_net = next_ptr->ptr();
-	      //assert(next_net);
+            // TODO first iterate over list and if functor is vvp_fun_intermodpath
+            // then check if output is connected to net, if so return
+            vvp_net_ptr_t* net_ptr = net1_ptr;
 
-	      if (!next_net) return 0;
+            while (net_ptr)
+            {
+                  vvp_net_t* next_net = net_ptr->ptr();
 
-	      print_net_type(next_net);
+                  if (!next_net) break; // End of list
 
-	      for (int i=0; i<4; i++)
-	      {
-		      fprintf(stderr, "next_net->port[%d].ptr() : %p\n", i, next_net->port[i].ptr());
-		      fprintf(stderr, "next_net->port[%d].port() : %d\n", i, next_net->port[i].port());
+                  // Found a vvp_fun_intermodpath, check if port2 is connected
+                  if (dynamic_cast<vvp_fun_intermodpath*>(next_net->fun))
+                  {
+                        if (next_net->out_.ptr() == net2)
+                        {
+                              fprintf(stderr, "Found already existing modpath!\n");
 
-		      if (next_net->port[i].ptr()) print_net_type(next_net->port[i].ptr());
+                              // Return the intermodpath TODO is it correct to create a new object?
+                              // or add reference to __vpiInterModPath from vvp_fun_intermodpath
+                              __vpiInterModPath*intermodpath = vpip_make_intermodpath(next_net, port1, port2);
+
+                              return intermodpath;
+                        }
+                  }
+
+                  net_ptr = &next_net->port[net_ptr->port()];
             }
 
+            // Iterate over linked list until port2 is found
+            net_ptr = net1_ptr;
+            vvp_net_ptr_t previous_net_ptr = vvp_net_ptr_t(nullptr, 0);
+            vvp_net_t* previous_net = net1;
 
-	      // May be connected to both vvp_fun_modpath_src* and vvp_fun_bufz*!
-	      //if (next_net->port[next_ptr->port()].ptr() == nullptr)
-	      //{
-	      //fprintf(stderr, "next_net is the only thing connected to net1/net2!\n");
-	      int width = 1; // TODO
+            while (net_ptr)
+            {
+                  vvp_net_t* next_net = net_ptr->ptr();
+
+                  if (!next_net) break; // End of list
+                  if (next_net == net2) break; // Found net2
+
+                  previous_net_ptr = *net_ptr;
+                  net_ptr = &next_net->port[net_ptr->port()];
+            }
+
+            if (!net_ptr->ptr()) return 0;
+
+	      fprintf(stderr, "Net2 connected to net1!\n");
+
+	      fprintf(stderr, "%p\n", previous_net);
+
+	      fprintf(stderr, "Inserting intermodpath...\n");
+
+	      int width = 1; // TODO get width of port, check port widths are equal
 
 	      vvp_net_t*new_net = new vvp_net_t;
 	      vvp_fun_intermodpath*obj = new vvp_fun_intermodpath(new_net, width);
 	      new_net->fun = obj;
 
-	      new_net->out_= vvp_net_ptr_t(next_net,0); // point to port0 of net2
+            // point to where net2 was pointing
+            new_net->port[0] = net_ptr->ptr()->port[net_ptr->port()];
 
-	      net1->out_ = vvp_net_ptr_t(new_net,0); // point to port0 of new_net
+            // Directly connected to port1
+	      if (!previous_net_ptr.ptr())
+	      {
+                  net1->out_ = vvp_net_ptr_t(new_net,0);
+	      }
+            else
+            {
+                  // what pointed to net2 should point to new_net
+                  previous_net_ptr.ptr()->port[previous_net_ptr.port()] = vvp_net_ptr_t(new_net,0);
+            }
+
+            // out of new_net should point to net2
+	      new_net->out_= vvp_net_ptr_t(net2,0); // point to port0 of net2
+
 
 	      __vpiInterModPath*intermodpath = vpip_make_intermodpath(new_net, port1, port2);
 	      intermodpath->intermodpath = obj;
@@ -1820,41 +1832,7 @@ vpiHandle vpi_handle_multi(PLI_INT32 type,
 	      fprintf(stderr, "Inserted vvp_fun_intermodpath!\n");
 
 	      return intermodpath;
-	      //}
 
-      }
-      else
-      {
-	      fprintf(stderr, "Different net!\n");
-
-	      vvp_net_ptr_t* net1_ptr = &net1->out_;
-
-	      // TODO follow whole linked list
-	      if (net1_ptr->ptr() == net2)
-	      {
-		      fprintf(stderr, "But net1 connected to net2!\n");
-
-		      if (net2->port[net1_ptr->port()].ptr() == nullptr)
-		      {
-			      fprintf(stderr, "Net2 is the only thing connected to net1!\n");
-
-			      int width = 1; // TODO
-
-			      vvp_net_t*new_net = new vvp_net_t;
-			      vvp_fun_intermodpath*obj = new vvp_fun_intermodpath(new_net, width);
-			      new_net->fun = obj;
-
-			      new_net->out_= vvp_net_ptr_t(net2,0); // point to port0 of net2
-			      net1->out_ = vvp_net_ptr_t(new_net,0); // point to port0 of new_net
-
-			      __vpiInterModPath*intermodpath = vpip_make_intermodpath(new_net, port1, port2);
-			      intermodpath->intermodpath = obj;
-
-			      fprintf(stderr, "Inserted vvp_fun_intermodpath!\n");
-
-			      return intermodpath;
-		      }
-	      }
       }
       std::cout << "sorry: Could not insert intermodpath!" << std::endl;
       return nullptr;

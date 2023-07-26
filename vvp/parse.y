@@ -713,9 +713,9 @@ statement
 
   /* Port information for scopes... currently this is just meta-data for VPI queries */
 
-	| K_PORT_INFO T_NUMBER port_type T_NUMBER T_STRING ';'
+	| K_PORT_INFO T_NUMBER port_type T_NUMBER T_STRING T_SYMBOL ';'
 		{ compile_port_info( $2 /* port_index */, $3, $4 /* width */,
-		                     $5 /*&name */ ); }
+		                     $5 /*&name */, $6 /*&symbol */ ); }
 
 
 	|         K_TIMESCALE T_NUMBER T_NUMBER';'

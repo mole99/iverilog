@@ -1123,7 +1123,7 @@ vvp_fun_intermodpath::vvp_fun_intermodpath(vvp_net_t*net, unsigned width)
 	      delay_[idx] = 0;
 
       cur_vec4_ = vvp_vector4_t(width, BIT4_X);
-      schedule_init_propagate(net_, cur_vec4_); // TODO is this needed?
+//      schedule_init_propagate(net_, cur_vec4_); // TODO is this needed?
 }
 
 vvp_fun_intermodpath::~vvp_fun_intermodpath()
@@ -1464,3 +1464,83 @@ void intermodpath_delete()
       imp_count = 0;
 }
 #endif
+
+// ------------------------------------------
+
+vvp_fun_port::vvp_fun_port(unsigned width)
+: net_(0)
+{
+      for (unsigned idx = 0 ;  idx < 12 ;  idx += 1)
+	      delay_[idx] = 0;
+
+      cur_vec4_ = vvp_vector4_t(width, BIT4_X);
+//      schedule_init_propagate(net_, cur_vec4_); // TODO is this needed?
+}
+
+vvp_fun_port::~vvp_fun_port()
+{
+}
+
+void vvp_fun_port::get_delay12(vvp_time64_t val[12]) const
+{
+      for (unsigned idx = 0 ;  idx < 12 ;  idx += 1)
+	    val[idx] = delay_[idx];
+}
+
+void vvp_fun_port::put_delay12(const vvp_time64_t val[12])
+{
+      for (unsigned idx = 0 ;  idx < 12 ;  idx += 1)
+	    delay_[idx] = val[idx];
+}
+
+/*
+ * FIXME: this implementation currently only uses the maximum delay
+ * from all the bit changes in the vectors. If there are multiple
+ * changes with different delays, then the results would be
+ * wrong. What should happen is that if there are multiple changes,
+ * multiple vectors approaching the result should be scheduled.
+ */
+void vvp_fun_port::recv_vec4(vvp_net_ptr_t port, const vvp_vector4_t&bit,
+                              vvp_context_t)
+{
+	/* Only the first port is used. */
+      if (port.port() > 0)
+	    return;
+
+      if (cur_vec4_.eeq(bit))
+	    return;
+
+	/* Given the scheduled output time, create an output event. */
+      vvp_time64_t use_delay = delay_from_edge(cur_vec4_.value(0),
+					       bit.value(0),
+					       delay_);
+
+	/* FIXME: This bases the edge delay on only the least
+	   bit. This is WRONG! I need to find all the possible delays,
+	   and schedule an event for each partial change. Hard! */
+      for (unsigned idx = 1 ;  idx < bit.size() ;  idx += 1) {
+	    vvp_time64_t tmp = delay_from_edge(cur_vec4_.value(idx),
+					       bit.value(idx),
+					       delay_);
+	      /* If the current and new bit values match then no delay
+	       * is needed for this bit. */
+	    if (cur_vec4_.value(idx) == bit.value(idx)) continue;
+	    assert(tmp == use_delay);
+      }
+
+      cur_vec4_ = bit;
+
+      if (net_ == 0) {
+	    net_ = port.ptr();
+	    schedule_generic(this, use_delay, false);
+      }
+}
+
+void vvp_fun_port::run_run()
+{
+      vvp_net_t*ptr = net_;
+      net_ = 0;
+
+      ptr->send_vec4(cur_vec4_, 0);
+}
+

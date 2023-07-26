@@ -698,6 +698,9 @@ void compile_functor(char*label, char*type, unsigned width,
       } else if (strcmp(type, "XOR") == 0) {
 	    obj = new vvp_fun_xor(width, false);
 
+      } else if (strcmp(type, "PORT") == 0) {
+	    obj = new vvp_fun_port(width);
+
       } else {
 	    yyerror("invalid functor type.");
 	    free(type);
